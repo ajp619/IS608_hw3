@@ -1,0 +1,105 @@
+Explore 0.1
+========================================================
+
+The objective here is to get the components running before assembling them into the shiny / googlevis app
+
+# Library Components
+```{r library}
+library(googleVis)
+library(ggplot2)
+library(plyr)
+```
+
+# Working Directory
+```{r setwd}
+if ("Code" %in% list.files()){
+  setwd("Code/raw_0.1/")
+}
+```
+
+
+# Load Data
+```{r load}
+mortality.data <- read.csv("../../Data/cleaned-cdc-mortality-1999-2010.csv")
+```
+
+# Clean Data
+```{r clean}
+# Drop the following columns:
+# No information in Notes, the rest are redundant
+drop <- c("X", "ICD.Chapter.Code", "State.Code", "Year.Code", "Notes")
+mortality.data <- mortality.data[,!(names(mortality.data) %in% drop)]
+
+
+# Need to create National Average Information
+national.avg <- ddply(mortality.data, c("Year", "ICD.Chapter"), summarize,
+                      Deaths = sum(Deaths),
+                      Population = sum(Population))
+# The national population should be the max calculated pop for each year.
+# This assumes I'm getting at least one condition each year that includes all States.
+# (Seems like a safe assumption)
+# Use this number for the national population for each year for each condition
+for (y in unique(national.avg$Year)){
+  max.pop <- max(national.avg$Population[national.avg$Year == y])
+  national.avg$Population[national.avg$Year == y] <- max.pop
+}
+# Now need to add in data to match columns of original data frame
+# State will be "National Average" and Crude.Rate will be calculated:
+#     Crude.Rate = Deaths / Population * 100000
+national.avg$State = "National Average"
+national.avg$Crude.Rate <- national.avg$Deaths / national.avg$Population * 1e5
+# Now add this back into the original data set
+mortality.data <- rbind(mortality.data, national.avg)
+```
+
+# Explore
+
+```{r}
+# Overview
+sapply(mortality.data[1,], class)
+summary(mortality.data)
+any(is.na(mortality.data))
+
+# IDC. Chapter
+table(mortality.data$ICD.Chapter)
+levels(mortality.data$ICD.Chapter)
+##  Containis type of condition
+
+# Looking at Year and State, it looks like each state has about 200 observations
+# In California, those observations are split about equally between 1999 - 2010
+# Looks like I have about one data point per ICD.Chapter / State / Year
+summary(mortality.data$State)
+summary(factor(mortality.data$Year[mortality.data$State == "California"]))
+
+# Crude.Rate
+# Crude.Rate = Deaths / Population * 1e5
+
+# What's missing?
+# Should have number of: States(51) * ICD.Chapter(19) * Year(12) = 11628 worth of data. Only have 9961
+
+
+```
+
+
+Trial gvis plot
+```{r}
+state.var <- '{"sizeOption":"_UNISIZE","yZoomedIn":false,"xLambda":1,"yZoomedDataMin":0,"dimensions":{"iconDimensions":["dim0"]},"xZoomedDataMax":52,"xZoomedIn":false,"iconType":"VBAR","time":"2010","xAxisOption":"5","showTrails":false,"duration":{"timeUnit":"Y","multiplier":1},"uniColorForNonSelected":false,"playDuration":15000,"iconKeySettings":[{"key":{"dim0":"National Average"},"LabelX":-91,"LabelY":-90},{"key":{"dim0":"California"}},{"key":{"dim0":"New York"},"LabelX":-15,"LabelY":-61},{"key":{"dim0":"West Virginia"}}],"orderedByY":false,"nonSelectedAlpha":0.4,"xZoomedDataMin":0,"colorOption":"_UNIQUE_COLOR","yAxisOption":"5","orderedByX":true,"yZoomedDataMax":300,"yLambda":1};'
+
+plot(gvisMotionChart(mortality.data[mortality.data$ICD.Chapter == "Neoplasms",], "State", "Year", options = list(width = 600, height = 400, state = state.var)))
+```
+
+
+
+# Problem 1
+As a researcher, you frequently compare mortality rates from particular causes across different States. You need a visualization that will let you see (for 2010 only) the crude mortality rate, across all States, from one cause (for example, Neoplasms, which are effectively cancers). Create a visualization that allows you to rank States by crude mortality for each cause of death.
+
+```{r}
+
+```
+
+
+
+# Problem 2
+Often you are asked whether particular States are improving their mortality rates (per cause) faster than, or slower than, the national average. Create a visualization that lets your clients see this for themselves for one cause of death at the time. Keep in mind that the national average should be weighted by the national population.
+
+
