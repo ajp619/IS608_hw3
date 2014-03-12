@@ -8,10 +8,16 @@ shinyUI(pageWithSidebar(
   
   sidebarPanel(
     selectInput("disease.type", "Choose a cause of death", 
-                choices = disease.types)
+                choices = disease.types),
+    selectInput("states", "States:",
+                states, multiple = TRUE, selected = "National Average")
   ),
   
   mainPanel(
-    htmlOutput("mortalityPlot")
+    tabsetPanel(
+      tabPanel("Mortality Rate per State",
+               htmlOutput("mortalityPerState")),
+      tabPanel("Mortality Rate over Time",
+               htmlOutput("mortalityOverTime")))
   )
 ))
